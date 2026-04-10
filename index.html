@@ -250,7 +250,7 @@
 
     <!-- 主畫面區 -->
     <main class="flex-1 flex flex-col h-full bg-[#f4f7f9] relative w-full">
-        <header class="h-20 glass-panel border-b border-slate-200 flex items-center justify-between px-6 shrink-0 z-30">
+        <header class="h-20 glass-panel border-b border-slate-200 flex items-center justify-between px-4 md:px-6 shrink-0 z-30">
             <div class="flex items-center gap-4">
                 <button onclick="toggleSidebar()" class="md:hidden text-slate-600 text-xl">
                     <i class="fa-solid fa-bars"></i>
@@ -261,12 +261,26 @@
                 </div>
             </div>
 
-            <div class="flex items-center gap-4">
-                <div class="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-indigo-50 text-indigo-700 rounded-lg text-xs font-bold border border-indigo-100">
+            <div class="flex items-center gap-2 sm:gap-3">
+                <div class="hidden lg:flex items-center gap-2 px-3 py-1.5 bg-indigo-50 text-indigo-700 rounded-lg text-xs font-bold border border-indigo-100 mr-2">
                     <i class="fa-solid fa-user-check"></i> 教師權限
                 </div>
-                <button id="startBtn" onclick="runSimulation()" class="flex items-center gap-2 px-6 py-2.5 bg-slate-900 text-white rounded-xl text-sm font-bold shadow-lg shadow-slate-300 hover:bg-indigo-600 hover:shadow-indigo-200 transition-all active:scale-95">
-                    <i class="fa-solid fa-rotate-right text-emerald-400"></i> 重新產生比較數據
+                
+                <!-- 新增控制按鈕區域 -->
+                <button id="pauseBtn" onclick="pauseSimulation()" class="hidden items-center gap-2 px-3 md:px-4 py-2 bg-amber-50 border border-amber-200 text-amber-700 rounded-xl text-sm font-bold shadow-sm hover:bg-amber-100 transition-all active:scale-95">
+                    <i class="fa-solid fa-pause"></i> <span class="hidden sm:inline">暫停</span>
+                </button>
+                
+                <button id="resumeBtn" onclick="resumeSimulation()" class="hidden items-center gap-2 px-3 md:px-4 py-2 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl text-sm font-bold shadow-sm hover:bg-emerald-100 transition-all active:scale-95">
+                    <i class="fa-solid fa-play"></i> <span class="hidden sm:inline">繼續</span>
+                </button>
+
+                <button id="clearBtn" onclick="clearSimulation()" class="flex items-center gap-2 px-3 md:px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-xl text-sm font-bold shadow-sm hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 transition-all active:scale-95">
+                    <i class="fa-solid fa-trash-can"></i> <span class="hidden sm:inline">清除</span>
+                </button>
+                
+                <button id="startBtn" onclick="runSimulation()" class="flex items-center gap-2 px-4 md:px-6 py-2 md:py-2.5 bg-slate-900 text-white rounded-xl text-sm font-bold shadow-lg shadow-slate-300 hover:bg-indigo-600 hover:shadow-indigo-200 transition-all active:scale-95">
+                    <i class="fa-solid fa-rotate-right text-emerald-400"></i> <span class="hidden sm:inline">重新產生比較數據</span><span class="sm:hidden">重新產生</span>
                 </button>
             </div>
         </header>
@@ -518,6 +532,9 @@
 
         /* --- 狀態控制與超參數 (Hyperparameters) --- */
         let isRunning = false;
+        let isPaused = false;
+        let simTimeout = null;
+        
         const mechanisms = { m1: true, m2: true, m3: true, m4: true, m5: true };
         
         const MODEL_MAP = {
@@ -538,6 +555,18 @@
         let modelStates = Object.keys(MODEL_MAP).reduce((acc, key) => { acc[key] = true; return acc; }, {});
         
         const hyperParams = { temp: 0.7, kValue: 3, cot: 1 };
+        
+        // 全域模擬狀態物件，方便暫停/繼續時調用
+        let simState = {
+            results: [],
+            typeCounts: { A: 0, B: 0, C: 0, D: 0 },
+            currentIndex: 0,
+            totalItems: 100,
+            selectedModels: [],
+            baseReduction: 0,
+            tempFactorC: 0, tempFactorD: 0, kFactorB: 0, kLatPenalty: 0, kFadBoost: 0,
+            cotFactorC: 1, cotLatMultiplier: 1
+        };
 
         function updateHyperparam(key, value) {
             hyperParams[key] = parseFloat(value);
@@ -690,23 +719,41 @@
             'Gemini 3.0 Thinking (CoT) (思維鍊版)': { tC: 0.005, tB: 0.01, tD: 0.06, lat: 18000, fad: 0.96 }
         };
 
-        let simTimeout = null; // 改用 setTimeout 處理真實等待時間
+        function updateButtonStates() {
+            const startBtn = document.getElementById('startBtn');
+            const pauseBtn = document.getElementById('pauseBtn');
+            const resumeBtn = document.getElementById('resumeBtn');
+            
+            if (isRunning) {
+                startBtn.classList.add('hidden'); startBtn.classList.remove('flex');
+                pauseBtn.classList.remove('hidden'); pauseBtn.classList.add('flex');
+                resumeBtn.classList.add('hidden'); resumeBtn.classList.remove('flex');
+            } else if (isPaused) {
+                startBtn.classList.add('hidden'); startBtn.classList.remove('flex');
+                pauseBtn.classList.add('hidden'); pauseBtn.classList.remove('flex');
+                resumeBtn.classList.remove('hidden'); resumeBtn.classList.add('flex');
+            } else {
+                startBtn.classList.remove('hidden'); startBtn.classList.add('flex');
+                pauseBtn.classList.add('hidden'); pauseBtn.classList.remove('flex');
+                resumeBtn.classList.add('hidden'); resumeBtn.classList.remove('flex');
+            }
+        }
 
         function runSimulation() {
-            if(isRunning) return;
             const selectedModels = Object.keys(modelStates)
                 .filter(k => modelStates[k])
                 .map(k => MODEL_MAP[k]);
 
             if(selectedModels.length === 0) { alert("請至少開啟一種模型進行測試"); return; }
 
-            isRunning = true;
             if (simTimeout) clearTimeout(simTimeout);
+            
+            isRunning = true;
+            isPaused = false;
+            updateButtonStates();
 
-            // 初始化與重置 UI
             const progressText = document.getElementById('progress-text');
-            progressText.classList.remove('bg-slate-200', 'text-slate-600', 'bg-indigo-100', 'text-indigo-700', 'bg-emerald-100', 'text-emerald-700');
-            progressText.classList.add('bg-amber-100', 'text-amber-700');
+            progressText.className = 'text-[10px] px-3 py-1 rounded-full font-bold uppercase tracking-wider transition-colors duration-300 bg-amber-100 text-amber-700';
             progressText.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin mr-1"></i> 準備生成...`;
 
             document.getElementById('table-body').innerHTML = ''; // 清空表格
@@ -717,103 +764,164 @@
             scatterChartInstance.data.datasets.forEach(d => d.data = []);
             scatterChartInstance.update();
 
-            // 1. 機制開關基礎影響
+            // 重置數值
+            document.getElementById('kpi-hrs').innerText = "0.000";
+            document.getElementById('kpi-fad').innerText = "0.00";
+            document.getElementById('kpi-latency').innerText = "0";
+            document.getElementById('kpi-intervention').innerText = "0.0%";
+            document.getElementById('kpi-kappa').innerText = "0.00";
+
             const activeMechs = Object.values(mechanisms).filter(v=>v).length;
-            const baseReduction = activeMechs * 0.12; 
-
-            // 2. 超參數數學轉換矩陣
-            const tempFactorC = Math.pow((hyperParams.temp / 0.7), 1.5); 
-            const tempFactorD = Math.max(0.1, 1 - (hyperParams.temp - 0.7)); 
-
-            const kFactorB = Math.max(0.2, 1 - (hyperParams.kValue * 0.08)); 
-            const kLatPenalty = hyperParams.kValue * 150; 
-            const kFadBoost = hyperParams.kValue * 0.015;
-
-            let cotFactorC = 1;
-            let cotLatMultiplier = 1;
-            if (mechanisms.m5) {
-                cotFactorC = Math.max(0, 1 - ((hyperParams.cot - 1) * 0.3)); 
-                cotLatMultiplier = 1 + ((hyperParams.cot - 1) * 0.6); 
-            }
-
-            let results = [];
-            let typeCounts = { A: 0, B: 0, C: 0, D: 0 };
-            const totalItems = 100;
-            let currentIndex = 0;
-
-            // 定義單步執行函式 (採用真實 setTimeout 延遲)
-            const processNext = () => {
-                if (currentIndex >= totalItems) {
-                    isRunning = false;
-                    progressText.innerHTML = `<i class="fa-solid fa-circle-check mr-1"></i> 分析完成 (共100題)`;
-                    progressText.classList.remove('bg-amber-100', 'text-amber-700');
-                    progressText.classList.add('bg-emerald-100', 'text-emerald-700');
-                    
-                    // 最後執行一次帶有動畫的圖表更新
-                    pieChartInstance.update();
-                    scatterChartInstance.update();
-                    return;
-                }
-
-                const model = selectedModels[Math.floor(Math.random() * selectedModels.length)];
-                const prof = MODEL_PROFILES[model];
-                
-                const effTypeC = Math.max(0, prof.tC * (1 - baseReduction) * tempFactorC * cotFactorC);
-                const effTypeB = Math.max(0, prof.tB * tempFactorC * kFactorB);
-                const effTypeD = Math.max(0, prof.tD * tempFactorD);
-                
-                let types = [];
-                let totalHrs = 0;
-                let maxLatMult = 1.0;
-
-                // 執行三次獨立判定
-                for(let j=0; j<3; j++) {
-                    const rand = Math.random();
-                    let t = 'Type_A';
-                    if(rand < effTypeC) { 
-                        t = 'Type_C'; typeCounts.C++; 
-                        totalHrs += 0.85; maxLatMult = Math.max(maxLatMult, 1.3); 
-                    } else if(rand < effTypeC + effTypeB) { 
-                        t = 'Type_B'; typeCounts.B++; 
-                        totalHrs += 0.45; maxLatMult = Math.max(maxLatMult, 1.1); 
-                    } else if(rand < effTypeC + effTypeB + effTypeD) { 
-                        t = 'Type_D'; typeCounts.D++; 
-                        totalHrs += 0.05; 
-                    } else { 
-                        typeCounts.A++; 
-                        totalHrs += 0.01; 
-                    }
-                    types.push(t);
-                }
-
-                // 計算這次請求的實際延遲時間
-                const finalLatency = Math.floor((prof.lat * (0.8 + Math.random()*0.4) * maxLatMult * cotLatMultiplier) + kLatPenalty);
-                const finalFad = Math.min(0.99, prof.fad * (0.9 + Math.random()*0.1) + kFadBoost).toFixed(2);
-                const avgHrsBase = (totalHrs / 3).toFixed(3);
-
-                const rowData = {
-                    id: currentIndex, title: `華語測試題 #${String(currentIndex+1).padStart(3, '0')}`, model: model, type: types,
-                    latency: finalLatency, fad: finalFad, hrs: avgHrsBase,
-                    timestamp: new Date().toLocaleTimeString('en-US', { hour12: false })
-                };
-                
-                // 在開始等待時，更新狀態列讓使用者知道系統正在跑，且要等多久
-                const waitSecs = (finalLatency / 1000).toFixed(1);
-                progressText.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin mr-1"></i> 等待 ${model.split(' ')[0]} 回應... (${waitSecs}s) - 題數 ${currentIndex + 1}/${totalItems}`;
-
-                // 啟動真實等待計時器
-                simTimeout = setTimeout(() => {
-                    results.push(rowData);
-                    // 延遲結束後，將資料推入 UI
-                    updateUIIncremental(rowData, results, typeCounts, currentIndex + 1);
-                    currentIndex++;
-                    processNext(); // 觸發下一題
-                }, finalLatency);
+            
+            // 初始化全局模擬狀態
+            simState = {
+                results: [],
+                typeCounts: { A: 0, B: 0, C: 0, D: 0 },
+                currentIndex: 0,
+                totalItems: 100,
+                selectedModels: selectedModels,
+                baseReduction: activeMechs * 0.12,
+                tempFactorC: Math.pow((hyperParams.temp / 0.7), 1.5),
+                tempFactorD: Math.max(0.1, 1 - (hyperParams.temp - 0.7)),
+                kFactorB: Math.max(0.2, 1 - (hyperParams.kValue * 0.08)),
+                kLatPenalty: hyperParams.kValue * 150,
+                kFadBoost: hyperParams.kValue * 0.015,
+                cotFactorC: mechanisms.m5 ? Math.max(0, 1 - ((hyperParams.cot - 1) * 0.3)) : 1,
+                cotLatMultiplier: mechanisms.m5 ? 1 + ((hyperParams.cot - 1) * 0.6) : 1
             };
 
-            // 開始執行流水線
             processNext();
         }
+
+        function pauseSimulation() {
+            if (!isRunning) return;
+            isRunning = false;
+            isPaused = true;
+            if (simTimeout) clearTimeout(simTimeout);
+            updateButtonStates();
+            
+            const progressText = document.getElementById('progress-text');
+            progressText.className = 'text-[10px] px-3 py-1 rounded-full font-bold uppercase tracking-wider transition-colors duration-300 bg-slate-200 text-slate-700';
+            progressText.innerHTML = `<i class="fa-solid fa-pause mr-1"></i> 已暫停 (${simState.currentIndex}/${simState.totalItems})`;
+        }
+
+        function resumeSimulation() {
+            if (!isPaused) return;
+            isRunning = true;
+            isPaused = false;
+            updateButtonStates();
+            
+            processNext(); // 直接喚醒下一個
+        }
+
+        function clearSimulation() {
+            isRunning = false;
+            isPaused = false;
+            if (simTimeout) clearTimeout(simTimeout);
+            updateButtonStates();
+
+            // 清空畫面元素
+            document.getElementById('table-body').innerHTML = ''; 
+            pieChartInstance.data.datasets[0].data = [0, 0, 0, 0];
+            pieChartInstance.update();
+            scatterChartInstance.data.datasets.forEach(d => d.data = []);
+            scatterChartInstance.update();
+
+            document.getElementById('kpi-hrs').innerText = "0.000";
+            document.getElementById('kpi-fad').innerText = "0.00";
+            document.getElementById('kpi-latency').innerText = "0";
+            document.getElementById('kpi-intervention').innerText = "0.0%";
+            document.getElementById('kpi-kappa').innerText = "0.00";
+            
+            document.getElementById('pie-total').innerText = "0";
+            document.getElementById('leg-c').innerText = "0%";
+            document.getElementById('leg-b').innerText = "0%";
+            document.getElementById('leg-d').innerText = "0%";
+            document.getElementById('leg-a').innerText = "0%";
+
+            const progressText = document.getElementById('progress-text');
+            progressText.className = 'text-[10px] px-3 py-1 rounded-full font-bold uppercase tracking-wider transition-colors duration-300 bg-slate-200 text-slate-600';
+            progressText.innerHTML = `<i class="fa-solid fa-circle-check mr-1"></i> 系統就緒`;
+            
+            simState.currentIndex = 0; // 重置指標防呆
+        }
+
+        // 定義單步執行函式 (採用真實 setTimeout 延遲)
+        const processNext = () => {
+            if (!isRunning) return;
+
+            if (simState.currentIndex >= simState.totalItems) {
+                isRunning = false;
+                isPaused = false;
+                updateButtonStates();
+                
+                const progressText = document.getElementById('progress-text');
+                progressText.className = 'text-[10px] px-3 py-1 rounded-full font-bold uppercase tracking-wider transition-colors duration-300 bg-emerald-100 text-emerald-700';
+                progressText.innerHTML = `<i class="fa-solid fa-circle-check mr-1"></i> 分析完成 (共100題)`;
+                
+                pieChartInstance.update();
+                scatterChartInstance.update();
+                return;
+            }
+
+            const model = simState.selectedModels[Math.floor(Math.random() * simState.selectedModels.length)];
+            const prof = MODEL_PROFILES[model];
+            
+            const effTypeC = Math.max(0, prof.tC * (1 - simState.baseReduction) * simState.tempFactorC * simState.cotFactorC);
+            const effTypeB = Math.max(0, prof.tB * simState.tempFactorC * simState.kFactorB);
+            const effTypeD = Math.max(0, prof.tD * simState.tempFactorD);
+            
+            let types = [];
+            let totalHrs = 0;
+            let maxLatMult = 1.0;
+
+            // 執行三次獨立判定
+            for(let j=0; j<3; j++) {
+                const rand = Math.random();
+                let t = 'Type_A';
+                if(rand < effTypeC) { 
+                    t = 'Type_C'; simState.typeCounts.C++; 
+                    totalHrs += 0.85; maxLatMult = Math.max(maxLatMult, 1.3); 
+                } else if(rand < effTypeC + effTypeB) { 
+                    t = 'Type_B'; simState.typeCounts.B++; 
+                    totalHrs += 0.45; maxLatMult = Math.max(maxLatMult, 1.1); 
+                } else if(rand < effTypeC + effTypeB + effTypeD) { 
+                    t = 'Type_D'; simState.typeCounts.D++; 
+                    totalHrs += 0.05; 
+                } else { 
+                    simState.typeCounts.A++; 
+                    totalHrs += 0.01; 
+                }
+                types.push(t);
+            }
+
+            // 計算這次請求的實際延遲時間
+            const finalLatency = Math.floor((prof.lat * (0.8 + Math.random()*0.4) * maxLatMult * simState.cotLatMultiplier) + simState.kLatPenalty);
+            const finalFad = Math.min(0.99, prof.fad * (0.9 + Math.random()*0.1) + simState.kFadBoost).toFixed(2);
+            const avgHrsBase = (totalHrs / 3).toFixed(3);
+
+            const rowData = {
+                id: simState.currentIndex, title: `華語測試題 #${String(simState.currentIndex+1).padStart(3, '0')}`, model: model, type: types,
+                latency: finalLatency, fad: finalFad, hrs: avgHrsBase,
+                timestamp: new Date().toLocaleTimeString('en-US', { hour12: false })
+            };
+            
+            // 在開始等待時，更新狀態列
+            const progressText = document.getElementById('progress-text');
+            const waitSecs = (finalLatency / 1000).toFixed(1);
+            progressText.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin mr-1"></i> 等待 ${model.split(' ')[0]} 回應... (${waitSecs}s) - 題數 ${simState.currentIndex + 1}/${simState.totalItems}`;
+
+            // 啟動真實等待計時器
+            simTimeout = setTimeout(() => {
+                if (!isRunning) return; // 雙重保險：如果在等待過程中按下暫停或清除，阻斷執行
+
+                simState.results.push(rowData);
+                // 延遲結束後，將資料推入 UI
+                updateUIIncremental(rowData, simState.results, simState.typeCounts, simState.currentIndex + 1);
+                simState.currentIndex++;
+                processNext(); // 觸發下一題
+            }, finalLatency);
+        };
 
         // 增量更新 UI 函式
         function updateUIIncremental(newRow, data, counts, currentCount) {
