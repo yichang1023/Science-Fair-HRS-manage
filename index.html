@@ -392,7 +392,7 @@
                             <i class="fa-solid fa-list-check text-indigo-500"></i> 實時評測流水線清單 (共100題)
                         </h3>
                         <span id="progress-text" class="text-[10px] bg-slate-200 text-slate-600 px-3 py-1 rounded-full font-bold uppercase tracking-wider transition-colors duration-300">
-                            系統就緒
+                            <i class="fa-solid fa-circle-check mr-1"></i> 系統就緒
                         </span>
                     </div>
                     
@@ -514,7 +514,6 @@
 
         window.addEventListener('DOMContentLoaded', () => {
             initCharts();
-            setTimeout(() => { runSimulation(false); }, 500);
         });
 
         /* --- 狀態控制與超參數 (Hyperparameters) --- */
@@ -691,10 +690,10 @@
             'Gemini 3.0 Thinking (CoT) (思維鍊版)': { tC: 0.005, tB: 0.01, tD: 0.06, lat: 18000, fad: 0.96 }
         };
 
-        let simInterval = null;
+        let simTimeout = null; // 改用 setTimeout 處理真實等待時間
 
-        function runSimulation(isInstant = false) {
-            if(isRunning && !isInstant) return;
+        function runSimulation() {
+            if(isRunning) return;
             const selectedModels = Object.keys(modelStates)
                 .filter(k => modelStates[k])
                 .map(k => MODEL_MAP[k]);
@@ -702,13 +701,13 @@
             if(selectedModels.length === 0) { alert("請至少開啟一種模型進行測試"); return; }
 
             isRunning = true;
-            if (simInterval) clearInterval(simInterval);
+            if (simTimeout) clearTimeout(simTimeout);
 
             // 初始化與重置 UI
             const progressText = document.getElementById('progress-text');
-            progressText.classList.remove('bg-slate-200', 'text-slate-600', 'bg-indigo-100', 'text-indigo-700');
+            progressText.classList.remove('bg-slate-200', 'text-slate-600', 'bg-indigo-100', 'text-indigo-700', 'bg-emerald-100', 'text-emerald-700');
             progressText.classList.add('bg-amber-100', 'text-amber-700');
-            progressText.innerText = "正在分析 (0/100)";
+            progressText.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin mr-1"></i> 準備生成...`;
 
             document.getElementById('table-body').innerHTML = ''; // 清空表格
             
@@ -742,14 +741,13 @@
             const totalItems = 100;
             let currentIndex = 0;
 
-            // 定義單步執行函式 (逐題產生)
+            // 定義單步執行函式 (採用真實 setTimeout 延遲)
             const processNext = () => {
                 if (currentIndex >= totalItems) {
-                    if(simInterval) clearInterval(simInterval);
                     isRunning = false;
-                    progressText.innerText = "分析完成";
+                    progressText.innerHTML = `<i class="fa-solid fa-circle-check mr-1"></i> 分析完成 (共100題)`;
                     progressText.classList.remove('bg-amber-100', 'text-amber-700');
-                    progressText.classList.add('bg-indigo-100', 'text-indigo-700');
+                    progressText.classList.add('bg-emerald-100', 'text-emerald-700');
                     
                     // 最後執行一次帶有動畫的圖表更新
                     pieChartInstance.update();
@@ -788,6 +786,7 @@
                     types.push(t);
                 }
 
+                // 計算這次請求的實際延遲時間
                 const finalLatency = Math.floor((prof.lat * (0.8 + Math.random()*0.4) * maxLatMult * cotLatMultiplier) + kLatPenalty);
                 const finalFad = Math.min(0.99, prof.fad * (0.9 + Math.random()*0.1) + kFadBoost).toFixed(2);
                 const avgHrsBase = (totalHrs / 3).toFixed(3);
@@ -798,23 +797,22 @@
                     timestamp: new Date().toLocaleTimeString('en-US', { hour12: false })
                 };
                 
-                results.push(rowData);
+                // 在開始等待時，更新狀態列讓使用者知道系統正在跑，且要等多久
+                const waitSecs = (finalLatency / 1000).toFixed(1);
+                progressText.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin mr-1"></i> 等待 ${model.split(' ')[0]} 回應... (${waitSecs}s) - 題數 ${currentIndex + 1}/${totalItems}`;
 
-                // 即時增量更新 UI
-                updateUIIncremental(rowData, results, typeCounts, currentIndex + 1);
-                
-                progressText.innerText = `正在分析 (${currentIndex + 1}/${totalItems})`;
-                currentIndex++;
-                
-                if(isInstant) processNext(); 
+                // 啟動真實等待計時器
+                simTimeout = setTimeout(() => {
+                    results.push(rowData);
+                    // 延遲結束後，將資料推入 UI
+                    updateUIIncremental(rowData, results, typeCounts, currentIndex + 1);
+                    currentIndex++;
+                    processNext(); // 觸發下一題
+                }, finalLatency);
             };
 
-            if (isInstant) {
-                while(currentIndex < totalItems) processNext();
-            } else {
-                // 每 40 毫秒產生一題，製造流水線視覺效果 (100題約需 4 秒)
-                simInterval = setInterval(processNext, 40);
-            }
+            // 開始執行流水線
+            processNext();
         }
 
         // 增量更新 UI 函式
