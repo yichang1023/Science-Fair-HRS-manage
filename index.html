@@ -82,7 +82,7 @@
                     <i class="fa-solid fa-shield-halved text-lg"></i>
                 </div>
                 <div>
-                    <h1 class="text-sm font-bold tracking-tight leading-tight">2026 幻覺評測</h1>
+                    <h1 class="text-sm font-bold tracking-tight leading-tight">2026 幻覺管理評測系統</h1>
                     <span class="text-[10px] text-slate-400 font-mono tracking-widest">WEB DASHBOARD</span>
                 </div>
             </div>
@@ -332,7 +332,7 @@
                     <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex flex-col relative h-[320px]">
                         <div class="flex justify-between items-start mb-2">
                             <h3 class="text-sm font-bold text-slate-800 flex items-center gap-2">
-                                <i class="fa-solid fa-chart-pie text-indigo-500"></i> 錯誤型態比例分析
+                                <i class="fa-solid fa-chart-pie text-indigo-500"></i> 錯誤型態比例分析 (共300次判定)
                             </h3>
                             <span id="hyper-status" class="text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded uppercase tracking-widest">即時動態</span>
                         </div>
@@ -345,7 +345,7 @@
                                 </div>
                                 <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
                                     <span id="pie-total" class="text-4xl font-black text-slate-800 leading-none">0</span>
-                                    <span class="text-[10px] font-bold text-slate-400 uppercase mt-1 tracking-widest">Total</span>
+                                    <span class="text-[10px] font-bold text-slate-400 uppercase mt-1 tracking-widest">總判定數</span>
                                 </div>
                             </div>
                             
@@ -386,29 +386,26 @@
                 </div>
 
                 <!-- 底部清單區 -->
-                <div class="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden flex flex-col h-[400px]">
+                <div class="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden flex flex-col h-[600px]">
                     <div class="px-6 py-4 border-b border-slate-100 bg-slate-50 flex justify-between items-center shrink-0">
                         <h3 class="text-sm font-bold flex items-center gap-2 text-slate-800">
-                            <i class="fa-solid fa-list-check text-indigo-500"></i> 實時評測流水線清單
+                            <i class="fa-solid fa-list-check text-indigo-500"></i> 實時評測流水線清單 (共100題)
                         </h3>
-                        <span id="progress-text" class="text-[10px] bg-slate-200 text-slate-600 px-3 py-1 rounded-full font-bold uppercase tracking-wider">
+                        <span id="progress-text" class="text-[10px] bg-slate-200 text-slate-600 px-3 py-1 rounded-full font-bold uppercase tracking-wider transition-colors duration-300">
                             系統就緒
                         </span>
                     </div>
                     
-                    <div class="flex-1 overflow-y-auto no-scrollbar relative">
-                        <div id="loading-overlay" class="absolute inset-0 bg-white/80 backdrop-blur-sm z-10 hidden flex-col items-center justify-center gap-4">
-                            <i class="fa-solid fa-circle-notch fa-spin text-4xl text-indigo-600"></i>
-                            <p class="text-sm font-bold text-slate-600 tracking-widest">正在重新生成模擬數據與更新圖表...</p>
-                        </div>
-
+                    <div class="flex-1 overflow-y-auto no-scrollbar relative" id="table-container">
                         <table class="w-full text-left border-collapse">
                             <thead class="sticky top-0 bg-white shadow-sm z-0">
                                 <tr class="text-[11px] text-slate-400 uppercase font-black tracking-wider bg-white">
                                     <th class="px-6 py-4">模型與標題</th>
-                                    <th class="px-4 py-4 w-28">錯誤型態</th>
+                                    <th class="px-2 py-4 text-center w-20">判定1</th>
+                                    <th class="px-2 py-4 text-center w-20">判定2</th>
+                                    <th class="px-2 py-4 text-center w-20">判定3</th>
                                     <th class="px-4 py-4 text-right mobile-hide">延遲 (ms)</th>
-                                    <th class="px-4 py-4 text-right">風險分數</th>
+                                    <th class="px-4 py-4 text-right">平均風險分數</th>
                                 </tr>
                             </thead>
                             <tbody id="table-body" class="divide-y divide-slate-100 text-sm">
@@ -429,8 +426,8 @@
             </button>
             <div class="p-8 sm:p-10">
                 <div class="flex items-center gap-3 mb-6">
-                    <span id="modal-badge" class="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider"></span>
-                    <span id="modal-model" class="text-xs font-bold text-slate-500 font-mono tracking-widest"></span>
+                    <div id="modal-badge-container" class="flex flex-wrap gap-2"></div>
+                    <span id="modal-model" class="text-xs font-bold text-slate-500 font-mono tracking-widest ml-auto"></span>
                 </div>
                 <h4 id="modal-title" class="text-2xl font-bold text-slate-800 mb-2 leading-tight"></h4>
                 <p class="text-[11px] text-slate-400 font-mono mb-8" id="modal-time"></p>
@@ -444,13 +441,13 @@
                         <p id="modal-fad" class="text-xl font-mono font-black text-slate-800"></p>
                     </div>
                     <div class="text-center">
-                        <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-1">Risk (HRS)</p>
+                        <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-1">Risk (Avg HRS)</p>
                         <p id="modal-hrs" class="text-xl font-mono font-black text-rose-600"></p>
                     </div>
                 </div>
                 <div class="mt-6 bg-slate-50 p-6 rounded-2xl border border-slate-100">
                     <p class="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-2">
-                        <i class="fa-solid fa-microchip"></i> 裁判分析 (AI Judge)
+                        <i class="fa-solid fa-microchip"></i> 綜合裁判分析 (AI Judge)
                     </p>
                     <p class="text-sm text-slate-700 leading-relaxed text-justify" id="modal-desc"></p>
                 </div>
@@ -484,7 +481,7 @@
                 },
                 options: {
                     responsive: true, maintainAspectRatio: false, cutout: '75%', animation: { duration: 400 },
-                    plugins: { legend: { display: false }, tooltip: { callbacks: { label: (ctx) => `${ctx.label || ''}: ${ctx.parsed} 題` } } }
+                    plugins: { legend: { display: false }, tooltip: { callbacks: { label: (ctx) => `${ctx.label || ''}: ${ctx.parsed} 次` } } }
                 }
             });
 
@@ -493,10 +490,10 @@
                 type: 'scatter',
                 data: {
                     datasets: [
-                        { label: 'Type C (幻覺)', data: [], backgroundColor: CHART_COLORS.C, pointRadius: 5, pointHoverRadius: 8 },
-                        { label: 'Type B (錯置)', data: [], backgroundColor: CHART_COLORS.B, pointRadius: 4, pointHoverRadius: 7 },
-                        { label: 'Type A (正確)', data: [], backgroundColor: CHART_COLORS.A, pointRadius: 3, pointHoverRadius: 6 },
-                        { label: 'Type D (拒答)', data: [], backgroundColor: CHART_COLORS.D, pointRadius: 4, pointHoverRadius: 7 }
+                        { label: 'Type C (有幻覺)', data: [], backgroundColor: CHART_COLORS.C, pointRadius: 5, pointHoverRadius: 8 },
+                        { label: 'Type B (有錯置)', data: [], backgroundColor: CHART_COLORS.B, pointRadius: 4, pointHoverRadius: 7 },
+                        { label: 'Type A (皆正確)', data: [], backgroundColor: CHART_COLORS.A, pointRadius: 3, pointHoverRadius: 6 },
+                        { label: 'Type D (有拒答)', data: [], backgroundColor: CHART_COLORS.D, pointRadius: 4, pointHoverRadius: 7 }
                     ]
                 },
                 options: {
@@ -504,7 +501,7 @@
                     plugins: {
                         legend: { display: true, labels: { color: '#94a3b8', boxWidth: 10, font: { size: 10 } } },
                         tooltip: { backgroundColor: 'rgba(15, 23, 42, 0.9)', titleFont: { size: 13 }, bodyFont: { size: 12 }, padding: 10,
-                            callbacks: { label: (ctx) => [`📌 ${ctx.raw.title}`, `模型: ${ctx.raw.model}`, `延遲: ${ctx.raw.x} ms`, `風險: ${ctx.raw.y} HRS`] }
+                            callbacks: { label: (ctx) => [`📌 ${ctx.raw.title}`, `模型: ${ctx.raw.model}`, `延遲: ${ctx.raw.x} ms`, `平均風險: ${ctx.raw.y} HRS`] }
                         }
                     },
                     scales: {
@@ -655,15 +652,20 @@
             document.getElementById('modal-fad').innerText = data.fad;
             document.getElementById('modal-hrs').innerText = data.hrs;
             
-            const badge = document.getElementById('modal-badge');
-            badge.innerText = data.type.replace('_', ' ');
-            badge.className = 'px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ';
+            const badgeContainer = document.getElementById('modal-badge-container');
+            badgeContainer.innerHTML = data.type.map((t, i) => {
+                let badgeClass = t === 'Type_A' ? 'bg-emerald-100 text-emerald-700' : t === 'Type_B' ? 'bg-amber-100 text-amber-700' : t === 'Type_C' ? 'bg-rose-100 text-rose-700' : 'bg-slate-200 text-slate-700';
+                return `<span class="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${badgeClass}">判定${i+1}: ${t.replace('_', ' ')}</span>`;
+            }).join('');
+            
+            const pType = data.type.includes('Type_C') ? 'Type_C' : (data.type.includes('Type_B') ? 'Type_B' : (data.type.includes('Type_D') ? 'Type_D' : 'Type_A'));
             let desc = "";
-            if(data.type === 'Type_A') { badge.classList.add('bg-emerald-100', 'text-emerald-700'); desc = "「事實密度高，未偵測到過度斷言語氣，判定為完全正確。」"; }
-            else if(data.type === 'Type_B') { badge.classList.add('bg-amber-100', 'text-amber-700'); desc = "「流暢度極高，但發現事實偏移，屬於隱蔽性極強的知識錯置。」"; }
-            else if(data.type === 'Type_C') { badge.classList.add('bg-rose-100', 'text-rose-700'); desc = "「生成延遲異常且邏輯矛盾，為高後果核心幻覺。」"; }
-            else { badge.classList.add('bg-slate-200', 'text-slate-700'); desc = "「觸發安全機制，模型採取保守策略拒絕回答。」"; }
+            if(pType === 'Type_A') { desc = "「經過三次判定，事實密度皆高且未偵測到過度斷言語氣，綜合判定為完全正確。」"; }
+            else if(pType === 'Type_B') { desc = "「在某次判定中流暢度極高，但發現事實偏移，屬於隱蔽性極強的知識錯置。」"; }
+            else if(pType === 'Type_C') { desc = "「部分判定出現生成延遲異常且邏輯矛盾，綜合評估為高後果核心幻覺。」"; }
+            else { desc = "「部分判定觸發安全機制，模型採取保守策略拒絕回答。」"; }
             document.getElementById('modal-desc').innerText = desc;
+
             modal.classList.remove('hidden');
             setTimeout(() => { modal.classList.remove('opacity-0'); modalContent.classList.remove('scale-95'); }, 10);
         }
@@ -689,6 +691,8 @@
             'Gemini 3.0 Thinking (CoT) (思維鍊版)': { tC: 0.005, tB: 0.01, tD: 0.06, lat: 18000, fad: 0.96 }
         };
 
+        let simInterval = null;
+
         function runSimulation(isInstant = false) {
             if(isRunning && !isInstant) return;
             const selectedModels = Object.keys(modelStates)
@@ -698,17 +702,27 @@
             if(selectedModels.length === 0) { alert("請至少開啟一種模型進行測試"); return; }
 
             isRunning = true;
-            const overlay = document.getElementById('loading-overlay');
+            if (simInterval) clearInterval(simInterval);
+
+            // 初始化與重置 UI
             const progressText = document.getElementById('progress-text');
-            if(!isInstant) {
-                overlay.classList.remove('hidden'); overlay.classList.add('flex');
-            }
+            progressText.classList.remove('bg-slate-200', 'text-slate-600', 'bg-indigo-100', 'text-indigo-700');
+            progressText.classList.add('bg-amber-100', 'text-amber-700');
+            progressText.innerText = "正在分析 (0/100)";
+
+            document.getElementById('table-body').innerHTML = ''; // 清空表格
+            
+            // 重置圖表資料
+            pieChartInstance.data.datasets[0].data = [0, 0, 0, 0];
+            pieChartInstance.update();
+            scatterChartInstance.data.datasets.forEach(d => d.data = []);
+            scatterChartInstance.update();
 
             // 1. 機制開關基礎影響
             const activeMechs = Object.values(mechanisms).filter(v=>v).length;
             const baseReduction = activeMechs * 0.12; 
 
-            // 2. 超參數數學轉換矩陣 (Hyperparameter Math Matrix)
+            // 2. 超參數數學轉換矩陣
             const tempFactorC = Math.pow((hyperParams.temp / 0.7), 1.5); 
             const tempFactorD = Math.max(0.1, 1 - (hyperParams.temp - 0.7)); 
 
@@ -716,7 +730,6 @@
             const kLatPenalty = hyperParams.kValue * 150; 
             const kFadBoost = hyperParams.kValue * 0.015;
 
-            // 只有在 M5 開啟時，才套用 CoT 數學轉換
             let cotFactorC = 1;
             let cotLatMultiplier = 1;
             if (mechanisms.m5) {
@@ -724,9 +737,26 @@
                 cotLatMultiplier = 1 + ((hyperParams.cot - 1) * 0.6); 
             }
 
-            let results = [], typeCounts = { A: 0, B: 0, C: 0, D: 0 }, totalItems = 225;
+            let results = [];
+            let typeCounts = { A: 0, B: 0, C: 0, D: 0 };
+            const totalItems = 100;
+            let currentIndex = 0;
 
-            for(let i=0; i<totalItems; i++) {
+            // 定義單步執行函式 (逐題產生)
+            const processNext = () => {
+                if (currentIndex >= totalItems) {
+                    if(simInterval) clearInterval(simInterval);
+                    isRunning = false;
+                    progressText.innerText = "分析完成";
+                    progressText.classList.remove('bg-amber-100', 'text-amber-700');
+                    progressText.classList.add('bg-indigo-100', 'text-indigo-700');
+                    
+                    // 最後執行一次帶有動畫的圖表更新
+                    pieChartInstance.update();
+                    scatterChartInstance.update();
+                    return;
+                }
+
                 const model = selectedModels[Math.floor(Math.random() * selectedModels.length)];
                 const prof = MODEL_PROFILES[model];
                 
@@ -734,88 +764,121 @@
                 const effTypeB = Math.max(0, prof.tB * tempFactorC * kFactorB);
                 const effTypeD = Math.max(0, prof.tD * tempFactorD);
                 
-                const rand = Math.random();
-                let type = 'Type_A';
-                if(rand < effTypeC) { type = 'Type_C'; typeCounts.C++; }
-                else if(rand < effTypeC + effTypeB) { type = 'Type_B'; typeCounts.B++; }
-                else if(rand < effTypeC + effTypeB + effTypeD) { type = 'Type_D'; typeCounts.D++; }
-                else { typeCounts.A++; }
+                let types = [];
+                let totalHrs = 0;
+                let maxLatMult = 1.0;
 
-                const typeLatMult = type === 'Type_C' ? 1.3 : (type === 'Type_B' ? 1.1 : 1.0);
-                const finalLatency = Math.floor((prof.lat * (0.8 + Math.random()*0.4) * typeLatMult * cotLatMultiplier) + kLatPenalty);
-                const finalFad = Math.min(0.99, prof.fad * (0.9 + Math.random()*0.1) + kFadBoost).toFixed(2);
-                
-                const hrsBase = type === 'Type_C' ? 0.85 : (type === 'Type_B' ? 0.45 : 0.05);
-
-                results.push({
-                    id: i, title: `華語測試題 #${String(i+1).padStart(3, '0')}`, model: model, type: type,
-                    latency: finalLatency, fad: finalFad, hrs: hrsBase.toFixed(3),
-                    timestamp: new Date().toLocaleTimeString('en-US', { hour12: false })
-                });
-            }
-
-            setTimeout(() => {
-                updateUI(results, typeCounts, totalItems);
-                if(!isInstant) {
-                    overlay.classList.add('hidden'); overlay.classList.remove('flex');
-                    progressText.innerText = "分析完成";
-                    progressText.classList.replace('bg-slate-200', 'bg-indigo-100');
-                    progressText.classList.replace('text-slate-600', 'text-indigo-700');
+                // 執行三次獨立判定
+                for(let j=0; j<3; j++) {
+                    const rand = Math.random();
+                    let t = 'Type_A';
+                    if(rand < effTypeC) { 
+                        t = 'Type_C'; typeCounts.C++; 
+                        totalHrs += 0.85; maxLatMult = Math.max(maxLatMult, 1.3); 
+                    } else if(rand < effTypeC + effTypeB) { 
+                        t = 'Type_B'; typeCounts.B++; 
+                        totalHrs += 0.45; maxLatMult = Math.max(maxLatMult, 1.1); 
+                    } else if(rand < effTypeC + effTypeB + effTypeD) { 
+                        t = 'Type_D'; typeCounts.D++; 
+                        totalHrs += 0.05; 
+                    } else { 
+                        typeCounts.A++; 
+                        totalHrs += 0.01; 
+                    }
+                    types.push(t);
                 }
-                isRunning = false;
-                window.generatedData = true; // 新增：觸發完畢後確保滑桿連動可以生效
-            }, isInstant ? 0 : 800);
+
+                const finalLatency = Math.floor((prof.lat * (0.8 + Math.random()*0.4) * maxLatMult * cotLatMultiplier) + kLatPenalty);
+                const finalFad = Math.min(0.99, prof.fad * (0.9 + Math.random()*0.1) + kFadBoost).toFixed(2);
+                const avgHrsBase = (totalHrs / 3).toFixed(3);
+
+                const rowData = {
+                    id: currentIndex, title: `華語測試題 #${String(currentIndex+1).padStart(3, '0')}`, model: model, type: types,
+                    latency: finalLatency, fad: finalFad, hrs: avgHrsBase,
+                    timestamp: new Date().toLocaleTimeString('en-US', { hour12: false })
+                };
+                
+                results.push(rowData);
+
+                // 即時增量更新 UI
+                updateUIIncremental(rowData, results, typeCounts, currentIndex + 1);
+                
+                progressText.innerText = `正在分析 (${currentIndex + 1}/${totalItems})`;
+                currentIndex++;
+                
+                if(isInstant) processNext(); 
+            };
+
+            if (isInstant) {
+                while(currentIndex < totalItems) processNext();
+            } else {
+                // 每 40 毫秒產生一題，製造流水線視覺效果 (100題約需 4 秒)
+                simInterval = setInterval(processNext, 40);
+            }
         }
 
-        function updateUI(data, counts, total) {
-            const avgHrs = data.reduce((sum, r) => sum + parseFloat(r.hrs), 0) / total;
-            const avgFad = data.reduce((sum, r) => sum + parseFloat(r.fad), 0) / total;
-            const avgLat = data.reduce((sum, r) => sum + r.latency, 0) / total;
-            const intervention = ((counts.B + counts.C + counts.D) / total * 100).toFixed(1);
+        // 增量更新 UI 函式
+        function updateUIIncremental(newRow, data, counts, currentCount) {
+            const totalEvals = currentCount * 3; 
+            
+            // 計算當前平均值
+            const avgHrs = data.reduce((sum, r) => sum + parseFloat(r.hrs), 0) / currentCount;
+            const avgFad = data.reduce((sum, r) => sum + parseFloat(r.fad), 0) / currentCount;
+            const avgLat = data.reduce((sum, r) => sum + r.latency, 0) / currentCount;
+            const intervention = ((counts.B + counts.C + counts.D) / totalEvals * 100).toFixed(1);
             
             const activeMechs = Object.values(mechanisms).filter(v=>v).length;
             const simulatedKappa = (0.83 + (activeMechs * 0.01) + (Math.random() * 0.02)).toFixed(2);
 
+            // 更新 KPI 看板
             document.getElementById('kpi-hrs').innerText = avgHrs.toFixed(3);
             document.getElementById('kpi-fad').innerText = avgFad.toFixed(2);
             document.getElementById('kpi-latency').innerText = Math.floor(avgLat).toLocaleString();
             document.getElementById('kpi-intervention').innerText = `${intervention}%`;
             document.getElementById('kpi-kappa').innerText = simulatedKappa;
 
+            // 即時加入新資料列到表格
             const tbody = document.getElementById('table-body');
-            tbody.innerHTML = '';
-            data.slice(0, 50).forEach(row => {
-                const tr = document.createElement('tr');
-                tr.className = 'hover:bg-slate-50 transition-colors cursor-pointer group';
-                tr.onclick = () => openModal(encodeURIComponent(JSON.stringify(row)));
-                let badgeClass = row.type === 'Type_A' ? 'bg-emerald-100 text-emerald-700' : row.type === 'Type_B' ? 'bg-amber-100 text-amber-700' : row.type === 'Type_C' ? 'bg-rose-100 text-rose-700' : 'bg-slate-200 text-slate-700';
-                tr.innerHTML = `
-                    <td class="px-6 py-4"><p class="font-bold text-slate-800 group-hover:text-indigo-600 transition-colors">${row.title}</p><p class="text-[10px] text-slate-400 font-mono mt-0.5">${row.model}</p></td>
-                    <td class="px-4 py-4"><span class="px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider ${badgeClass}">${row.type.replace('_', ' ')}</span></td>
-                    <td class="px-4 py-4 text-right font-mono text-slate-500 text-xs mobile-hide">${row.latency}</td>
-                    <td class="px-4 py-4 text-right font-mono font-bold text-sm ${row.hrs > 0.5 ? 'text-rose-600' : 'text-slate-700'}">${row.hrs}</td>
-                `;
-                tbody.appendChild(tr);
-            });
+            const tr = document.createElement('tr');
+            tr.className = 'hover:bg-slate-50 transition-colors cursor-pointer group';
+            tr.onclick = () => openModal(encodeURIComponent(JSON.stringify(newRow)));
+            
+            const badgesHTML = newRow.type.map(t => {
+                let badgeClass = t === 'Type_A' ? 'bg-emerald-100 text-emerald-700' : t === 'Type_B' ? 'bg-amber-100 text-amber-700' : t === 'Type_C' ? 'bg-rose-100 text-rose-700' : 'bg-slate-200 text-slate-700';
+                return `<td class="px-1 py-4"><span class="px-1 py-1 rounded-md text-[9px] font-black uppercase tracking-wider ${badgeClass} block text-center whitespace-nowrap">${t.replace('Type_', '')}</span></td>`;
+            }).join('');
 
-            document.getElementById('pie-total').innerText = total;
-            document.getElementById('leg-c').innerText = ((counts.C / total) * 100).toFixed(1) + '%';
-            document.getElementById('leg-b').innerText = ((counts.B / total) * 100).toFixed(1) + '%';
-            document.getElementById('leg-d').innerText = ((counts.D / total) * 100).toFixed(1) + '%';
-            document.getElementById('leg-a').innerText = ((counts.A / total) * 100).toFixed(1) + '%';
+            tr.innerHTML = `
+                <td class="px-6 py-4"><p class="font-bold text-slate-800 group-hover:text-indigo-600 transition-colors">${newRow.title}</p><p class="text-[10px] text-slate-400 font-mono mt-0.5">${newRow.model}</p></td>
+                ${badgesHTML}
+                <td class="px-4 py-4 text-right font-mono text-slate-500 text-xs mobile-hide">${newRow.latency}</td>
+                <td class="px-4 py-4 text-right font-mono font-bold text-sm ${newRow.hrs > 0.5 ? 'text-rose-600' : 'text-slate-700'}">${newRow.hrs}</td>
+            `;
+            tbody.appendChild(tr);
+            
+            // 自動向下捲動表格，保持最新項目在可視範圍
+            tr.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+            // 更新圓餅圖數據
+            document.getElementById('pie-total').innerText = totalEvals;
+            document.getElementById('leg-c').innerText = ((counts.C / totalEvals) * 100).toFixed(1) + '%';
+            document.getElementById('leg-b').innerText = ((counts.B / totalEvals) * 100).toFixed(1) + '%';
+            document.getElementById('leg-d').innerText = ((counts.D / totalEvals) * 100).toFixed(1) + '%';
+            document.getElementById('leg-a').innerText = ((counts.A / totalEvals) * 100).toFixed(1) + '%';
+            
             pieChartInstance.data.datasets[0].data = [counts.C, counts.B, counts.D, counts.A];
-            pieChartInstance.update();
+            pieChartInstance.update('none'); // 使用 none 取消過渡動畫，避免頻繁渲染卡頓
 
-            const sData = { C:[], B:[], A:[], D:[] };
-            data.slice(0, 100).forEach(r => {
-                const pt = { x: r.latency, y: parseFloat(r.hrs), title: r.title, model: r.model };
-                if(r.type==='Type_C') sData.C.push(pt); else if(r.type==='Type_B') sData.B.push(pt); else if(r.type==='Type_A') sData.A.push(pt); else sData.D.push(pt);
-            });
-            scatterChartInstance.data.datasets[0].data = sData.C;
-            scatterChartInstance.data.datasets[1].data = sData.B;
-            scatterChartInstance.data.datasets[2].data = sData.A;
-            scatterChartInstance.data.datasets[3].data = sData.D;
-            scatterChartInstance.update();
+            // 更新散佈圖數據
+            const pt = { x: newRow.latency, y: parseFloat(newRow.hrs), title: newRow.title, model: newRow.model };
+            const pType = newRow.type.includes('Type_C') ? 'Type_C' : (newRow.type.includes('Type_B') ? 'Type_B' : (newRow.type.includes('Type_D') ? 'Type_D' : 'Type_A'));
+            
+            if(pType==='Type_C') scatterChartInstance.data.datasets[0].data.push(pt); 
+            else if(pType==='Type_B') scatterChartInstance.data.datasets[1].data.push(pt); 
+            else if(pType==='Type_A') scatterChartInstance.data.datasets[2].data.push(pt); 
+            else scatterChartInstance.data.datasets[3].data.push(pt);
+            
+            scatterChartInstance.update('none');
         }
     </script>
 </body>
